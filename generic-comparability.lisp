@@ -1,11 +1,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; generic-comparability.lisp
-;;;; paul nathan 2013
-;;;; license: llgpl
+;;;; paul nathan 2013, 2014
+;;;; license: LLGPL
 ;;;; A mostly conforming implementation of CDR-8
 ;;;; http://cdr.eurolisp.org/document/8/cleqcmp.html
+;;;;
+;;;; The documentation is largely cribbed from CDR-8 itself, in order
+;;;; to provide corresponding understanding of the intent.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (defpackage #:generic-comparability
   (:use #:cl #:alexandria)
@@ -26,12 +28,13 @@
    #:not-greaterp
 
    #:hash-code))
+
 (in-package #:generic-comparability)
 
 
 (defgeneric equals (a b &rest keys &key recursive key &allow-other-keys)
   (:documentation
-"a b -- Common Lisp objects.
+   "a b -- Common Lisp objects.
 recursive -- a generalized boolean; default is NIL.
 result -- a boolean.
 keys -- a list (as per the usual behavior).
@@ -66,17 +69,33 @@ lambda-list markers imply."))
                    &key
                      floating-compare
                      (max-relative-diff 1.19e-7))
+  "EQUALS float float &key (floating-compare nil) (max-relative-diff 1.19e7)
+
+If floating-compare is true, then the floating comparison algorithm is used, as opposed to `=`.
+
+The floating comparison is derived from here:
+http://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+
+The Internet Archive has a copy of this URL.
+
+The implemented algorithm is AlmostEqualRelative. It is not the best
+possible float equality algorithm, but is simple and
+understandable (and easy to code). Improvements with citations from
+the literature are welcome.
+
+Observe the following comparison and beware:
+CL-USER> (equals 1.0 1.0000001 :floating-compare t)
+NIL
+CL-USER> (equals 1.0 1.00000001 :floating-compare t)
+T
+"
   (declare (ignore keys))
 
   (if floating-compare
-      ;; This is a routine yanked from here.
-      ;; randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
       (let ((diff (abs (- a b)))
             (a (abs a))
             (b (abs b)))
-        (if (<= diff (* (max a b) max-relative-diff))
-            t
-            nil))
+        (<= diff (* (max a b) max-relative-diff)))
       ;; If we decided to go with error-prone =...
       (= a b)))
 
@@ -85,8 +104,8 @@ lambda-list markers imply."))
   (= a b))
 
 (defmethod equals ((a cons) (b cons) &rest keys)
-    (declare (ignore keys))
-    (tree-equal a b :test #'equals))
+  (declare (ignore keys))
+  (tree-equal a b :test #'equals))
 
 
 (defmethod  equals ((a character) (b character)
@@ -99,7 +118,7 @@ lambda-list markers imply."))
 
 
 (defmethod equals ((a string) (b string)
-               &rest keys
+                   &rest keys
                    &key (case-sensitive t))
   (declare (ignore keys))
   (if case-sensitive
@@ -116,8 +135,15 @@ lambda-list markers imply."))
       (equalp a b)))
 
 (defmethod equals ((a standard-object) (b standard-object) &rest keys)
+
   (declare (ignore keys))
   (eq a b))
+
+
+;;; compound structure comparison is trickier.
+;;;
+;;; An open question is if the by-key and by-value keys are passed
+;;; into the child comparisons. And, should
 
 (defmethod equals ((a hash-table) (b hash-table)
                    &rest keys
@@ -126,11 +152,26 @@ lambda-list markers imply."))
                      (by-key t)
                      (by-value t)
                      (check-properties t) &allow-other-keys)
+  "EQUALS hash-table hash-table &key recursive (by-key t) (by-value t) (check-properties t)
+
+by-key implies checking hash table keys for equality
+
+by-value implies checking hash table values for equality
+
+check-properties implies checking both hash-table-rehash-size and
+hash-table rehash-threshhold.
+
+This is expensive: O( 2 * n * (time-of-key-comparison + time-of-value-comparison))."
+
+  ;; Are these the same object?
   (when (eq a b)
     (return-from equals t))
 
+  ;; Do they have different numbers of keys?
   (when (/=  (hash-table-size a) (hash-table-size b))
     (return-from equals nil))
+
+  ;; And now to check.
   (and
    (if by-key
        (loop
@@ -155,17 +196,22 @@ lambda-list markers imply."))
           (= (hash-table-rehash-threshold a)
              (hash-table-rehash-threshold b))))))
 
+
 (defmethod equals ((a array) (b array)
                    &rest keys
                    &key recursive &allow-other-keys)
-   (when (equal (array-dimensions a)
-                (array-dimensions b))
-       (loop for i from 0 below (array-total-size a)
-             always (apply #'(lambda
-                              (a b) (equals a b :recursive recursive))
-                           (row-major-aref a i)
-                           (row-major-aref b i)
-                           keys))))
+  "EQUALS array array &key recursive
+
+This implements a straightforward comparison element by element of the array."
+  ;; If a more sophisticated array EQUALS is desired, please submit such
+  (when (equal (array-dimensions a)
+               (array-dimensions b))
+    (loop for i from 0 below (array-total-size a)
+       always (apply #'(lambda
+                           (a b) (equals a b :recursive recursive))
+                     (row-major-aref a i)
+                     (row-major-aref b i)
+                     keys))))
 
 
 (defgeneric compare (a b &rest keys &key recursive  &allow-other-keys)
@@ -192,7 +238,7 @@ the relevant information about its recursive dependent behavior. "))
     (t :=)))
 
 (defmethod compare ((a symbol) (b symbol) &rest keys)
-    (declare (ignore keys))
+  (declare (ignore keys))
   (if (eq a b)
       :=
       :/=))
@@ -320,8 +366,9 @@ performance of hashtables.
 
 
 (defmethod hash-code ((a T))
+  "The generic hash-code implementation defaults to
+  SXHASH of the value passed in."
   (sxhash a))
-
 
 ;; Register the implementation of cdr-8
 (when (boundp '*features*)
