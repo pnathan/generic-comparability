@@ -228,44 +228,48 @@ the relevant information about its recursive dependent behavior. "))
 
 
 (defmethod compare ((a t) (b t) &rest keys)
-  :/=)
+  '/=)
 
 (defmethod compare ((a number) (b number) &rest keys)
   (declare (ignore keys))
   (cond
-    ((< a b) :<)
-    ((> a b) :>)
-    (t :=)))
+    ((< a b) '<)
+    ((> a b) '>)
+    (t '=)))
 
 (defmethod compare ((a symbol) (b symbol) &rest keys)
   (declare (ignore keys))
   (if (eq a b)
-      :=
-      :/=))
+      '=
+      '/=))
 
 (defmethod compare ((a character) (b character)
                     &rest keys
-                    &key case-sensitive)
+                    &key (case-sensitive t))
   (declare (ignore keys))
   (if case-sensitive
-      (cond ((string< a b) :<)
-            ((string> a b) :>)
-            (t :=))
-      (cond ((string-lessp a b) :<)
-            ((string-greaterp a b) :>)
-            (t :=))))
+      (cond ((string< a b) '<)
+            ((string> a b) '>)
+            ((string= a b) '=)
+            (t '/=))
+      (cond ((string-lessp a b) '<)
+            ((string-greaterp a b) '>)
+            ((string-equal a b) '=)
+            (t '/=))))
 
 (defmethod compare ((a string) (b string)
                     &rest keys
                     &key (case-sensitive t))
   (declare (ignore keys))
   (if case-sensitive
-      (cond ((string< a b) :<)
-            ((string> a b) :>)
-            (t :=))
-      (cond ((string-lessp a b) :<)
-            ((string-greaterp a b) :>)
-            (t :=))))
+      (cond ((string< a b) '<)
+            ((string> a b) '>)
+            ((string= a b) '=)
+            (t '/=))
+      (cond ((string-lessp a b) '<)
+            ((string-greaterp a b) '>)
+            ((string-equal a b) '=)
+            (t '=))))
 
 
 
