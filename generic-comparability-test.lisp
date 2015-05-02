@@ -116,6 +116,51 @@
           '<)
       "asd ASDf case-sensitive nil"))
 
+(test comparability
+  (test lt-compare
+    (is (lt 0 100))
+    (is (not (lt 20 20)))
+    (is (not (lt 40 0))))
+
+  (test lte-compare
+    (is (lte 0 200))
+    (is (lte 200 200))
+    (is (not (lte 50 -3))))
+
+  (test gt-compare
+    (is (gt 200 0))
+    (is (not (gt -800 -800)))
+    (is (not (gt -800 0))))
+
+  (test gte-compare
+    (is (gte 100 0))
+    (is (gte 200 200))
+    (is (not (gte 0 300)))))
+
+;; example from the spec.
+(defstruct foo a s d)
+
+(test incomparable
+  (signals incomparable-object
+     (lte (make-array 3 :initial-element 0)
+          (vector 1 2 42)))
+  (signals incomparable-object
+     (lte (make-foo :a 0 :d "I am a FOO")
+          (make-foo :a 42 :d "I am a foo"))))
+
+(test verify-generic-hash-code
+  (is (eql (hash-code 10)
+           (hash-code 10)))
+
+  (is (not (eql (hash-code "One Thing")
+                (hash-code "1d10t"))))
+
+  (is (not (eql (hash-code 0)
+            (hash-code "String"))))
+
+  (is (eql (hash-code "A string")
+           (hash-code "A string"))))
+
 (defun run-tests ()
   (let ((results (run 'test-set)))
     (explain! results)
