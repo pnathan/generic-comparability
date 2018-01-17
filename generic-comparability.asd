@@ -17,7 +17,8 @@
   :description "Generic-Comparability test suite"
   :version "1.0.1"
   :depends-on (#:alexandria
-               #:fiveam)
+               #:fiveam
+               #:generic-comparability)
   :license "LLGPL"
   :author "Paul Nathan"
   :components ((:file "generic-comparability-test")))
